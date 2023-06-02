@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Приложения</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous" />
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+	<div class="container">
+		<h1>Приложения</h1>
+		<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAppModal">
+			Добавить приложение
+		</button>
+
+		<table class="table">
+			<thead>
+				<tr>
+					<th>ID</th>
+					<th>Имя приложения</th>
+					<th>Alias</th>
+					<th>Политика</th>
+					<th>Взаимосвязь</th>
+					<th>Конфигурация агента</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody id="appTableBody"></tbody>
+		</table>
+
+		<!-- Модальное окно для редактирования/добавления приложения -->
+		<div class="modal fade" id="editAppModal" tabindex="-1" aria-labelledby="editAppModalLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title" id="editAppModalLabel">
+								Редактирование приложения
+							</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-3">
+							<label for="editAppName" class="form-label">Имя приложения</label>
+							<input type="text" class="form-control" id="editAppName" />
+						</div>
+						<div class="mb-3">
+							<label for="editAppId" class="form-label">Идентификатор</label>
+							<input type="text" class="form-control" id="editAppId" readonly />
+						</div>
+						<div class="mb-3">
+							<label for="editAppPolitic" class="form-label">Политика</label>
+							<input type="text" class="form-control" id="editAppPolitic" />
+						</div>
+						<div class="mb-3">
+							<label for="editAppCorrelation" class="form-label">Взаимосвязь</label>
+							<input type="text" class="form-control" id="editAppCorrelation" />
+						</div>
+						<div class="mb-3">
+							<label for="editAppAgent_js_config" class="form-label">Конфигурация агента</label>
+							<input type="text" class="form-control" id="editAppAgent_js_config" />
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+							Закрыть
+						</button>
+						<button type="button" class="btn btn-primary" id="saveAppButton">
+							Сохранить
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модальное окно для добавления приложения -->
+		<div class="modal fade" id="addAppModal" tabindex="-1" aria-labelledby="addAppModalLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title" id="addAppModalLabel">
+								Новое приложение
+							</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-3">
+							<label for="addAppName" class="form-label">Имя приложения</label>
+							<input type="text" class="form-control" id="addAppName" />
+						</div>
+						<div class="mb-3">
+							<label for="addAppId" class="form-label">Идентификатор</label>
+							<input type="text" class="form-control" id="addAppId" />
+						</div>
+
+						<div class="mb-3">
+							<label for="addPolitic" class="form-label">Политика</label>
+							<input type="text" class="form-control" id="addPolitic" />
+						</div>
+						<div class="mb-3">
+							<label for="addCorrelation" class="form-label">Взаимосвязь</label>
+							<input type="text" class="form-control" id="addCorrelation" />
+						</div>
+						<div class="mb-3">
+							<label for="addAgent_js_config" class="form-label">Конфигурация агента</label>
+							<input type="text" class="form-control" id="addAgent_js_config" />
+						</div>
+
+						<div id="addAppError" class="alert alert-danger d-none"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+							Отмена
+						</button>
+						<button type="button" class="btn btn-primary" id="createAppButton">
+							Сохранить
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- Диаграмма -->
+		<canvas id="myChart"></canvas>
+
+
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+		<script>
+			document.addEventListener('DOMContentLoaded', function() {
+				// Прокси для обхода CORS с локальной машины (Перед использованием надо авторизоваться)
+				// const proxy = 'https://cors-anywhere.herokuapp.com/';
+				// Функция для отправки запроса и обработки ответа
+				function sendRequest(url, method, body) {
+					return fetch(`${proxy}${url}`, {
+							method: method,
+							headers: {
+								'Content-Type': 'application/json; charset=utf-8'
+							},
+							body: JSON.stringify(body)
+						})
+						.then(function(response) {
+							if (response.ok) {
+								return response.json();
+							} else {
+								throw new Error('Ошибка при выполнении запроса');
+							}
+						})
+						.catch(function(error) {
+							alert('Ошибка при выполнении запроса');
+						});
+				}
+				// Функция для заполнения таблицы приложений
+				function populateAppTable(data) {
+					const tableBody = document.getElementById('appTableBody');
+					tableBody.innerHTML = '';
+					const apps = data.app_table_ids.map(function(id, index) {
+						return {
+							table_id: id,
+							name: data.names[index],
+							app_id: data.ids[index],
+							policy_id: data.policy_ids[index],
+							correlation: data.correlations_configs[index],
+							agent_js_config: data.agent_js_configs[index]
+						};
+					});
+					apps.forEach(function(app) {
+						const row = document.createElement('tr');
+						row.innerHTML = `
+                					<td>${app.table_id}</td>
+                					<td>${app.name}</td>
+                					<td>${app.app_id}</td>
+                					<td>${app.policy_id}</td>
+                					<td>${app.correlation}</td>
+                					<td>${app.agent_js_config}</td>
+                					<td>
+                   			<button class="btn btn-primary edit-button" data-app-id="${app.app_id}" data-app-name="${app.name}" data-app-policy="${app.policy_id}" data-app-correlation="${app.correlation}" data-app-agent_js_config="${app.agent_js_config}">
+                        		Редактировать
+                   			 </button>
+                		</td>`;
+						tableBody.appendChild(row);
+					});
+				}
+				// Функция для обновления списка приложений
+				function updateAppList() {
+					sendRequest('http://checkstatus.website:8099/Face/App_List', 'POST', '')
+						.then(function(result) {
+							populateAppTable(result);
+						});
+				}
+				// Загрузка списка приложений при загрузке страницы
+				sendRequest('http://checkstatus.website:8099/Face/App_List', 'POST', '')
+					.then(function(result) {
+						populateAppTable(result);
+					});
+				// Заполнение модального окна данными при редактировании приложения
+				document.addEventListener('click', function(event) {
+					if (event.target.matches('.edit-button')) {
+						const app_id = event.target.dataset.appId;
+						const appName = event.target.dataset.appName;
+						const policy_id = event.target.dataset.appPolicy;
+						const correlation = event.target.dataset.appCorrelation;
+						const agent_js_config = event.target.dataset.appAgent_js_config;
+						document.getElementById('editAppId').value = app_id;
+						document.getElementById('editAppName').value = appName;
+						document.getElementById('editAppPolitic').value = policy_id;
+						document.getElementById('editAppCorrelation').value = correlation;
+						document.getElementById('editAppAgent_js_config').value = agent_js_config;
+						$('#editAppModal').modal('show');
+					}
+				});
+				// Сохранение изменений приложения
+				document.getElementById('saveAppButton').addEventListener('click', function() {
+					const appId = document.getElementById('editAppId').value;
+					const appName = document.getElementById('editAppName').value;
+					const appPolicy = document.getElementById('editAppPolitic').value;
+					const appCorrelation = document.getElementById('editAppCorrelation').value;
+					const appAgentJsConfig = document.getElementById('editAppAgent_js_config').value;
+					const body = JSON.stringify({
+						app_id: appId,
+						app_name: appName,
+						policy_id: appPolicy,
+						agent_js_config: appAgentJsConfig,
+						correlations_config: appCorrelation
+					})
+					sendRequest('http://checkstatus.website:8099/Face/Update_app', 'POST', body)
+						.then(function() {
+							$('#editAppModal').modal('hide');
+							updateAppList();
+						})
+						.catch(function(error) {
+							alert('Произошла ошибка при изменении');
+						})
+				});
+
+				function checkAppIdExistence(appId) {
+					return sendRequest('http://checkstatus.website:8099/Face/App_List', 'POST', '')
+						.then(function(result) {
+							const appIds = result.ids;
+							return appIds.includes(appId);
+						});
+				}
+				// Функция для добавления нового приложения
+				function addApp(appId, appName, appPolicy, appCorrelation, appAgentJsConfig) {
+					checkAppIdExistence(appId)
+						.then(function(exists) {
+							if (exists) {
+								alert('Приложение с указанным идентификатором уже существует');
+							} else {
+								const body = JSON.stringify({
+									app_id: appId,
+									app_name: appName,
+									policy_id: appPolicy,
+									correlations_config: appCorrelation,
+									agent_js_config: appAgentJsConfig
+								});
+								sendRequest('http://checkstatus.website:8099/Face/New_app', 'POST', body)
+									.then(function() {
+										$('#addAppModal').modal('hide');
+										updateAppList();
+									})
+									.catch(function(error) {
+										alert('Произошла ошибка при добавлении');
+									});
+							}
+						});
+				}
+				// Добавление нового приложения
+				document.getElementById('createAppButton').addEventListener('click', function() {
+					const appId = document.getElementById('addAppId').value;
+					const appName = document.getElementById('addAppName').value;
+					const appPolicy = document.getElementById('addPolitic').value;
+					const appCorrelation = document.getElementById('addCorrelation').value;
+					const appAgentJsConfig = document.getElementById('addAgent_js_config').value;
+					addApp(appId, appName, appPolicy, appCorrelation, appAgentJsConfig);
+				});
+			});
+		</script>
+		<script>
+			const labels = ['18:18', '18:36', '18:54', '19:12', '19:30', '19:48', '20:06'];
+			const stackColors = ['rgb(94,132,123)', 'rgb(32,137,293)', 'rgb(122,116,196)'];
+			const stackCount = 18;
+			const datasetCount = 3;
+
+			const randomScalingFactor = () => Math.random() * (650 - 500) + 500;
+
+			const data = {
+				labels,
+				datasets: []
+			};
+
+			for (let i = 0; i < stackCount; i++) {
+				for (let j = 0; j < datasetCount; j++) {
+					const dataset = {
+						data: [
+							null,
+							null,
+							null,
+							null,
+							null,
+							null,
+							...Array.from({ length: 1 }, () => randomScalingFactor())
+						],
+						backgroundColor: stackColors[j % stackColors.length],
+						stack: `Stack ${i + 1}`
+					};
+					data.datasets.push(dataset);
+				}
+			}
+
+			const config = {
+				type: 'bar',
+				data,
+				options: {
+					plugins: {
+						tooltip: { enabled: false },
+						legend: { display: false },
+						title: { display: true, text: 'Перехваченные запросы' }
+					},
+					responsive: true,
+					interaction: { intersect: false },
+					scales: { x: { stacked: true }, y: { stacked: true } }
+				}
+			};
+
+			const chart = new Chart('myChart', config);
+		</script>
+	</div>
+</body>
+</html>
